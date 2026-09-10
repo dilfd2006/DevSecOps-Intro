@@ -2,11 +2,11 @@ threagile_version: 1.0.0
 
 title: Juice Shop Auth Flow
 
-date: 2025-09-18
+date: 2026-09-10
 
 author:
-  name: Student Name
-  homepage: https://example.edu
+  name: Diliia Faizullina
+  homepage: https://github.com/dilfd2006
 
 management_summary_comment: >
   Focused threat model covering only the Juice Shop authentication flow:
@@ -34,9 +34,9 @@ technical_overview:
   images: []
 
 questions:
-  Is the JWT signing key stored separately from application code?: ""
-  Does the admin endpoint validate the JWT on every request?: ""
-  Are credentials transmitted over TLS only?: ""
+  Is the JWT signing key stored separately from application code?: "No — in Juice Shop v20.0.0 the key is hardcoded in the source; ideally it should come from an environment variable or vault."
+  Does the admin endpoint validate the JWT on every request?: "Yes — the admin endpoint calls the JWT service to verify the token on every incoming request before serving any data."
+  Are credentials transmitted over TLS only?: "Yes — the Login Request link uses HTTPS; no plain-HTTP credential path is modelled."
 
 abuse_cases:
   Credential Brute Force: >

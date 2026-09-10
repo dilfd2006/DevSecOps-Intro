@@ -1,18 +1,19 @@
 threagile_version: 1.0.0
 
-title: OWASP Juice Shop Threat Model
-date: 2025-09-18
+title: OWASP Juice Shop (Secure)
+date: 2026-09-10
 
 author:
-  name: Student Name
-  homepage: https://example.edu
+  name: Diliia Faizullina
+  homepage: https://github.com/dilfd2006
 
 management_summary_comment: >
-  Threat model for a local OWASP Juice Shop setup. Users access the app  
-  either directly via HTTP on port 3000 or through an optional reverse proxy that  
-  terminates TLS and adds security headers. The app runs in a container  
-  and writes data to a host-mounted volume (for database, uploads, logs).  
-  Optional outbound notifications (e.g., a challenge-solution WebHook) can be configured for integrations.
+  Hardened variant of the Juice Shop threat model. All communication links to
+  the application now use HTTPS; the reverse-proxy-to-app link is authenticated
+  with a service token. The Juice Shop container and the host-mounted storage
+  volume are both encrypted at rest. These changes eliminate the
+  unencrypted-communication, missing-authentication, and unencrypted-asset
+  risk categories present in the baseline model.
 
 business_criticality: important  # archive, operational, important, critical, mission-critical
 
@@ -26,14 +27,19 @@ business_overview:
 
 technical_overview:
   description: >
-    A user’s web browser connects to the Juice Shop application (Node.js/Express server) either directly on **localhost:3000** (HTTP) or via a **reverse proxy** on ports 80/443 (with HTTPS). The Juice Shop server may issue outbound requests to external services (e.g., a configured **WebHook** for solved challenge notifications). All application data (the SQLite database, file uploads, logs) is stored on the host’s filesystem via a mounted volume. Key trust boundaries include the **Internet** (user & external services) → **Host** (local machine/VM) → **Container Network** (isolated app container).
+    A user’s web browser connects to Juice Shop either directly on **localhost:3000**
+    (now HTTPS) or via a **reverse proxy** on ports 80/443 (HTTPS). The internal
+    hop from the reverse proxy to the app also uses HTTPS and is authenticated
+    with a service token. The app and the host-mounted storage volume are
+    encrypted at rest. The Juice Shop server may issue outbound HTTPS requests
+    to an external WebHook. Trust boundaries: **Internet** → **Host** → **Container Network**.
   images: []
 
 questions:
-  Do you expose port 3000 beyond localhost?: ""
-  Do you use a reverse proxy with TLS and security headers?: ""
-  Are any outbound integrations (webhooks) configured?: ""
-  Is any sensitive data stored in logs or files?: ""
+  Do you expose port 3000 beyond localhost?: "No — port is bound to 127.0.0.1:3000 only."
+  Do you use a reverse proxy with TLS and security headers?: "Yes — optional Nginx on 443 with HTTPS termination and security headers."
+  Are any outbound integrations (webhooks) configured?: "Optional — HTTPS POST to an external webhook when a challenge is solved."
+  Is any sensitive data stored in logs or files?: "Yes — application logs on the host-mounted volume may contain PII and session data."
 
 abuse_cases:
   Credential Stuffing / Brute Force: >
@@ -259,7 +265,7 @@ technical_assets:
 
   Juice Shop Application:
     id: juice-shop
-    description: "OWASP Juice Shop server (Node.js/Express, v19.0.0)."
+    description: "OWASP Juice Shop server (Node.js/Express, v20.0.0)."
     type: process
     usage: business
     used_as_client_by_human: false
