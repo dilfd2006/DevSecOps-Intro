@@ -107,7 +107,7 @@ Checklist items:
 - [ ] No secrets or large temp files committed
 - [ ] `submissions/labN.md` exists
 
-Draft PR link: *(will be added after opening the draft PR)*
+Draft PR link: *(https://github.com/inno-devops-labs/DevSecOps-Intro/pull/1676)*
 
 ---
 
