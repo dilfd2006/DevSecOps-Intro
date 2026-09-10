@@ -17,15 +17,12 @@ Fingerprint: `SHA256:xQnomxWUG8v2TlMj7QqNTUNOMRPlTHseLCISYvKCHhE`
 ### git log --show-signature -1
 
 ```
-commit <hash>
 Good "git" signature for d.faizullina@innopolis.university with ED25519 key SHA256:xQnomxWUG8v2TlMj7QqNTUNOMRPlTHseLCISYvKCHhE
 Author: Diliia Faizullina <d.faizullina@innopolis.university>
-Date:   <date>
+Date:   Thu Sep 10 22:55:41 2026 +0300
 
-    feat(lab3): signed commits + gitleaks pre-commit hook
+test: first signed commit
 ```
-
-*(full output to be pasted after first signed commit)*
 
 ### GitHub Verified badge link
 
