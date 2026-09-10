@@ -113,7 +113,8 @@ Draft PR link: *(will be added after opening the draft PR)*
 
 ## GitHub community
 
-Stars help open-source maintainers show that people actually use their project — it affects discoverability on GitHub and gives maintainers something to point to when asking for sponsorship or corporate backing. Following classmates and instructors lets you see their repos and contributions in your feed, which makes it easier to stay aware of what's going on in the course without having to check manually.
+Starred [inno-devops-labs/DevSecOps-Intro](https://github.com/inno-devops-labs/DevSecOps-Intro) and [simple-container-com/api](https://github.com/simple-container-com/api). Followed [@Cre-eD](https://github.com/Cre-eD), [@Naghme98](https://github.com/Naghme98), [@pierrepicaud](https://github.com/pierrepicaud), and three classmates.
+
 
 ---
 
