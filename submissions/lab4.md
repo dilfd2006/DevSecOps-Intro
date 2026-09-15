@@ -10,7 +10,7 @@
 | SPDX packages (`jq '.packages \| length'`) | `909` |
 | CycloneDX `specVersion` | `1.7` |
 
-**Why the counts differ.** CycloneDX and SPDX draw the boundary between "a thing" differently. CycloneDX walks the full dependency tree and records every resolved package, including runtime deps, dev deps pulled during build, and OS-layer packages — each one is a `component`. SPDX operates at the SPDX Package level: it rolls up files and sub-packages under a single parent entry when they share provenance, and its `packages` field maps closer to what a human would call "installed software." The same Juice Shop image therefore produces ~3 × more CycloneDX components than SPDX packages: the npm dependency graph alone has hundreds of transitive entries that CycloneDX splits out individually but SPDX groups.
+**Why the counts differ.** CycloneDX lists every single resolved dependency — including all the transitive npm packages, runtime deps, and OS-layer packages — so each one becomes its own `component`. SPDX groups things that share the same provenance under one package entry, which is closer to "installed software" from a human perspective. That's why the same image gives ~3× more entries in CycloneDX than in SPDX: the npm tree alone has hundreds of transitive packages that CycloneDX splits out one by one.
 
 ### Severity table (Grype, from SBOM)
 
@@ -39,7 +39,7 @@
 | Critical | GHSA-23hp-3jrh-7fpw | `tar@7.5.15` | 7.5.19 |
 | Critical | CVE-2026-5450 | `libc6@2.41-12+deb13u2` | *(no fix)* |
 
-**Fix availability and triage.** 8 of the 10 have a fix version listed. Given only the severity and fix columns, I would start with `jsonwebtoken` (two Critical entries, fix available at 4.2.2): JWT is in the authentication path, so a critical vulnerability there has the widest blast radius, and bumping a version with a published safe release is a clear, low-risk step. After that, `lodash` and `crypto-js` are also Critical with fixes and widely imported by npm sub-deps, so they are likely to appear in many other packages in the tree. `decompress` and `libc6` both show Critical severity but have no fix yet — I would flag them for monitoring and apply compensating controls rather than waiting on an upstream patch.
+8 out of 10 have a fix available. I'd start with `jsonwebtoken` — two Critical entries, fix is just a version bump to 4.2.2, and JWT is in the auth path so the impact is high. After that `lodash` and `crypto-js` are also Critical with fixes ready. `decompress` and `libc6` are Critical but have no fix yet, so I'd just watch those for now.
 
 ---
 
@@ -57,16 +57,69 @@
 | Unknown | 4 | — | — |
 | **Total** | **181** | **171** | — |
 
-Unique advisory IDs: Grype found 155, Trivy found 144. 104 IDs appear only in Grype, 93 only in Trivy, and 51 overlap.
+Unique advisory IDs: Grype found 155, Trivy found 144. 104 IDs appear only in Grype, 93 only in Trivy, 51 in both.
 
 ### Divergent findings
 
-**Found by Grype, missed by Trivy — `CVE-2026-48617` (`node@24.15.0`, binary)**  
-Grype classifies the embedded Node.js runtime as a `binary` component and maps it against the Node.js advisory feed. Trivy's image scanner indexes language-specific manifests (`package.json`, `package-lock.json`) and OS package databases, but it does not fingerprint unpackaged binaries the same way. CVE-2026-48617 is a Node runtime advisory that has no `apt` or `npm` package entry to anchor it, so Trivy simply has nothing to match against and produces no finding.
+**Grype found, Trivy missed — `CVE-2026-48617` (`node@24.15.0`, binary)**  
+Grype detects the embedded Node.js runtime as a binary component and matches it against the Node.js advisory feed. Trivy works from package manifests (`package.json`) and OS databases, so an unpackaged binary sitting in the image has nothing for it to match against — it just doesn't show up.
 
-**Found by Trivy, missed by Grype — `CVE-2015-9235` (`jsonwebtoken@0.1.0`, npm)**  
-This is an older NVD advisory (2015) for a JWT algorithm-confusion flaw. Grype's vulnerability database aggregates from NVD, GitHub Advisory (GHSA), and several OS feeds; for this particular entry it only surfaces the GHSA alias (`GHSA-c7hr-j4mj-j2w6`), which is the canonical identifier it matched first. Trivy ingests the raw NVD CVE-ID separately and reports it in parallel with the GHSA alias, so it appears to "find more." Both are the same underlying vulnerability — different advisory-source priority explains the discrepancy.
+**Trivy found, Grype missed — `CVE-2015-9235` (`jsonwebtoken@0.1.0`, npm)**  
+This is an old 2015 NVD entry for a JWT algorithm-confusion issue. Grype already reported the same vulnerability under its GHSA alias (`GHSA-c7hr-j4mj-j2w6`) and treats that as the canonical ID, so the raw CVE-ID never appears separately. Trivy pulls the NVD ID and the GHSA alias independently and lists both — not really a different finding, just different advisory-source handling.
 
 ### Decoupled inventory vs. all-in-one scanner
 
-The decoupled approach (generate SBOM once, scan repeatedly) is worth the extra moving part when you need to scan the same image multiple times — for example, when a new CVE is published you can re-run Grype against the stored SBOM in seconds without re-pulling or re-indexing a 576 MB image. It also enables the workflow that Lab 8 builds on: the CycloneDX SBOM is attached to the image as a signed in-toto attestation, so downstream consumers can verify both *what is in the image* and *that the inventory was produced from a known, integrity-checked build* — none of that is possible if the scan result only ever exists as transient console output. A single binary like Trivy is the better answer for a first-pass audit or a CI gate where you just want a pass/fail verdict on a fresh pull: fewer steps, one config file, and no SBOM artifact to manage. The tradeoff is that you lose the decoupled re-scan capability and the signed attestation chain that the SBOM enables.
+The SBOM approach makes sense when you need to re-scan without re-pulling the image — if a new CVE drops next week, I can just run Grype against the stored JSON file in seconds. It also matters for Lab 8, which attaches this exact CycloneDX file to the image as a signed attestation, so someone downstream can verify what was in the image at build time. Trivy as a single binary is easier when I just need a quick pass/fail answer in CI: one command, no artifact to keep around. The tradeoff is losing the re-scan ability and the signed SBOM chain.
+
+---
+
+## Bonus
+
+### jq command used
+
+```bash
+jq -n \
+  --slurpfile pred labs/lab4/juice-shop.cdx.json \
+  '{
+    "_type": "https://in-toto.io/Statement/v0.1",
+    "subject": [{
+      "name": "bkimminich/juice-shop:v20.0.0",
+      "digest": {"sha256": "fd58bdc9745416afce8184ee0666278a436574633ea7880365153a63bfd418b0"}
+    }],
+    "predicateType": "https://cyclonedx.org/bom",
+    "predicate": $pred[0]
+  }' > labs/lab4/juice-shop-attestation.json
+```
+
+### First 20 lines of the result
+
+```json
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "bkimminich/juice-shop:v20.0.0",
+      "digest": {
+        "sha256": "fd58bdc9745416afce8184ee0666278a436574633ea7880365153a63bfd418b0"
+      }
+    }
+  ],
+  "predicateType": "https://cyclonedx.org/bom",
+  "predicate": {
+    "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.7",
+    "serialNumber": "urn:uuid:cae9bb5d-3d17-439e-8cd9-f83438d171e5",
+    "version": 1,
+    "metadata": {
+```
+
+### Digest
+
+`fd58bdc9745416afce8184ee0666278a436574633ea7880365153a63bfd418b0`
+
+The digest is used instead of the tag because tags are mutable — someone could push a different image under `v20.0.0` at any point and the tag would just point to the new one. The SHA-256 digest is tied to the exact bytes of the manifest, so the signature always refers to the specific image that was actually scanned.
+
+### What this file claims, who checks it, what it does not prove
+
+The file says: "this image (identified by digest) contains the components listed in this CycloneDX SBOM." A CI policy engine or `cosign verify-attestation` would check it to confirm that a signed SBOM exists for the image before allowing it to run. What it doesn't prove is that the SBOM is complete or accurate — it only guarantees that whatever Syft produced hasn't been tampered with. It also doesn't prove that the vulnerabilities found by Grype were actually fixed.
